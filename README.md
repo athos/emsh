@@ -1,14 +1,27 @@
 # emsh
 
-A Clojure library designed to ... well, that part is up to you.
+An embedded shell built on top of Clojure
 
 ## Usage
 
-FIXME
+```clojure
+(require '[emsh.core :as em])
+
+(em/do
+  (let [out "files.txt"]
+    (doseq [name (-> (| ("find" . -name *.clj)
+                        (sed -e "s/.clj//"))
+                     (->strs))]
+      (>> (echo (basename name)) out))
+    ("cat" out)))
+;; project
+;; core_test
+;; core
+```
 
 ## License
 
-Copyright © 2020 FIXME
+Copyright © 2020 Shogo Ohta
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
