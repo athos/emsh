@@ -64,13 +64,17 @@
   ([p out]
    (with-input-stream p #(io/copy % out))))
 
-(defn wait-for [p]
+(defn exit-value [p]
   (let [p' (ensure-started p)]
     (->out p')
     (.waitFor (process-impl p'))))
 
+(defn wait-for [p]
+  (exit-value p)
+  nil)
+
 (defn succeeded? [p]
-  (= (wait-for p) 0))
+  (= (exit-value p) 0))
 
 (defn sh [command & args]
   (->> (cons command args)

@@ -48,7 +48,7 @@
                           (str x))
                         (compile (as-expr cenv) x)))]
           (if-let [coerce-fn (get {:expr `emsh.core/->str*
-                                   :statement `emsh.core/->out
+                                   :statement `emsh.core/wait-for
                                    :conditional `emsh.core/succeeded?}
                                   (:context cenv))]
             `(~coerce-fn (emsh.core/sh ~op' ~@args'))
