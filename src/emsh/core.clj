@@ -41,9 +41,7 @@
       (f in))))
 
 (defn ->str [x]
-  (if (instance? ProcessBuilder x)
-    (with-input-stream x slurp)
-    (str x)))
+  (with-input-stream x slurp))
 
 (defn ->str* [p]
   (with-input-stream p
@@ -78,7 +76,7 @@
 
 (defn sh [command & args]
   (->> (cons command args)
-       ^java.util.List (map ->str)
+       ^java.util.List (map str)
        (ProcessBuilder.)))
 
 (defn | [& ps]
