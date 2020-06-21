@@ -1,9 +1,8 @@
 (ns emsh.core
   (:refer-clojure :exclude [< >])
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]
             [emsh.compile :as comp])
-  (:import [java.io OutputStream]))
+  (:import [java.io OutputStream BufferedReader]))
 
 (defn- ^Process ensure-started [p]
   (if (instance? ProcessBuilder p)
@@ -21,7 +20,7 @@
                       .getInputStream
                       io/reader)]
       (loop []
-        (when-let [line (.readLine r)]
+        (when-let [line (.readLine ^BufferedReader r)]
           (.append sb line)
           (recur))))
     (.toString sb)))
@@ -42,7 +41,7 @@
 
 (defn sh [command & args]
   (->> (cons command args)
-       (map ->str)
+       ^java.util.List (map ->str)
        (ProcessBuilder.)))
 
 (defn copy [in ^OutputStream out]
