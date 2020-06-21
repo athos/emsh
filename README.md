@@ -11,7 +11,7 @@ An embedded shell built on top of Clojure
   (let [out "files.txt"]
     (doseq [name (-> (| ("find" . -name *.clj)
                         (sed -e "s/.clj//"))
-                     (->strs))]
+                     (->lines))]
       (>> (echo (basename name)) out))
     ("cat" out)))
 ;; project

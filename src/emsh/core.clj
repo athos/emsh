@@ -20,7 +20,7 @@
           (recur))))
     (.toString sb)))
 
-(defn ->strs [^Process p]
+(defn ->lines [^Process p]
   (line-seq (io/reader (.getInputStream p))))
 
 (defn ->out
