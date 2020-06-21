@@ -2,8 +2,7 @@
   (:refer-clojure :exclude [< >])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [emsh.compile :as comp]
-            [emsh.utils :as utils])
+            [emsh.compile :as comp])
   (:import [java.io OutputStream]))
 
 (defn- ^Process ensure-started [p]

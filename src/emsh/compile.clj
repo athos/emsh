@@ -1,7 +1,13 @@
 (ns emsh.compile
   (:refer-clojure :exclude [compile])
-  (:require [clojure.string :as str]
-            [emsh.utils :as utils]))
+  (:require [clojure.string :as str]))
+
+(defn lookup [{:keys [locals]} sym]
+  (or (get locals sym)
+      (resolve '{do do} sym)
+      (when (and (nil? (namespace sym))
+                 (not= sym 'do))
+        (resolve (symbol "emsh.core" (name sym))))))
 
 (defn- as-expr [cenv] (assoc cenv :context :expr))
 (defn- as-statement [cenv] (assoc cenv :context :statement))
@@ -13,12 +19,12 @@
 
 (declare compile)
 
-(defn- compile-seq [{:keys [locals] :as cenv} [op & args :as form]]
-  (if-let [v (and (symbol? op) (utils/lookup locals op))]
+(defn- compile-seq [cenv [op & args :as form]]
+  (if-let [v (and (symbol? op) (lookup cenv op))]
     (or (when (var? v)
           (cond (and (:macro (meta v))
                      (not= (ns-name (:ns (meta v))) 'emsh.core))
-                (compile cenv (apply v form locals args))
+                (compile cenv (apply v form (:locals cenv) args))
 
                 (= (ns-name (:ns (meta v))) 'emsh.core)
                 (let [cenv' (assoc cenv :context :shell)]
@@ -37,7 +43,7 @@
         (let [op' (name op)
               args' (for [x args]
                       (if (symbol? x)
-                        (if (utils/lookup locals x)
+                        (if (lookup cenv x)
                           x
                           (str x))
                         (compile (as-expr cenv) x)))]
