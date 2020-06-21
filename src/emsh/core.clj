@@ -28,6 +28,13 @@
   ([^Process p out]
    (io/copy (.getInputStream p) out)))
 
+(defn exit-value [^Process p]
+  (.exitValue p))
+
+(defn succeeded? [^Process p]
+  (.waitFor p)
+  (= (exit-value p) 0))
+
 (defn sh* [command & args]
   (let [builder (->> (cons command args)
                      (map ->str)

@@ -39,7 +39,8 @@
                         (compile (as-expr cenv) x)
                         x))]
           (if-let [coerce-fn (get {:expr `emsh.core/->str*
-                                   :statement `emsh.core/->out}
+                                   :statement `emsh.core/->out
+                                   :conditional `emsh.core/succeeded?}
                                   (:context cenv))]
             `(~coerce-fn (emsh.core/sh ~op ~@args'))
             `(emsh.core/sh ~op ~@args'))))
@@ -85,7 +86,7 @@
     `(def ~name ~(compile (as-expr cenv) init))))
 
 (defmethod compile* 'if [cenv [_ test then else :as form]]
-  `(if ~(compile (as-expr cenv) test)
+  `(if ~(compile (assoc cenv :context :conditional) test)
      ~(compile cenv then)
      ~@(when (= (count form) 4)
          [(compile cenv else)])))
