@@ -6,40 +6,45 @@
             [emsh.utils :as utils])
   (:import [java.io OutputStream]))
 
+(defn- ^Process ensure-started [p]
+  (if (instance? ProcessBuilder p)
+    (.start ^ProcessBuilder p)
+    p))
+
 (defn ->str [x]
-  (if (instance? Process x)
-    (slurp (.getInputStream ^Process x))
+  (if (instance? ProcessBuilder x)
+    (slurp (.getInputStream (ensure-started x)))
     (str x)))
 
-(defn ->str* [^Process p]
+(defn ->str* [p]
   (let [sb (StringBuilder.)]
-    (with-open [r (io/reader (.getInputStream p))]
+    (with-open [r (-> (ensure-started p)
+                      .getInputStream
+                      io/reader)]
       (loop []
         (when-let [line (.readLine r)]
           (.append sb line)
           (recur))))
     (.toString sb)))
 
-(defn ->lines [^Process p]
-  (line-seq (io/reader (.getInputStream p))))
+(defn ->lines [p]
+  (line-seq (io/reader (.getInputStream (ensure-started p)))))
 
 (defn ->out
   ([p] (->out p *out*))
-  ([^Process p out]
-   (io/copy (.getInputStream p) out)))
+  ([p out]
+   (io/copy (.getInputStream (ensure-started p)) out)))
 
-(defn exit-value [^Process p]
-  (.exitValue p))
+(defn wait-for [p]
+  (.waitFor (ensure-started p)))
 
-(defn succeeded? [^Process p]
-  (.waitFor p)
-  (= (exit-value p) 0))
+(defn succeeded? [p]
+  (= (wait-for p) 0))
 
 (defn sh* [command & args]
-  (let [builder (->> (cons command args)
-                     (map ->str)
-                     (ProcessBuilder.))]
-    (.start builder)))
+  (->> (cons command args)
+       (map ->str)
+       (ProcessBuilder.)))
 
 (defmacro sh [command & args]
   `(sh* ~(str command)
@@ -54,23 +59,21 @@
   (.close out))
 
 (defn | [& ps]
-  (doseq [[p q] (partition 2 1 ps)]
-    (future
-      (copy (.getInputStream ^Process p)
-            (.getOutputStream ^Process q))))
-  (last ps))
+  (let [ps' (mapv ensure-started ps)]
+    (doseq [[p q] (partition 2 1 ps')]
+      (future
+        (copy (.getInputStream ^Process p)
+              (.getOutputStream ^Process q))))
+    (last ps')))
 
-(defn < [^Process p in]
-  (future (copy (io/input-stream in) (.getOutputStream p)))
-  p)
+(defn < [^ProcessBuilder p in]
+  (.redirectInput p (io/file in)))
 
-(defn > [^Process p out]
-  (future (copy (.getInputStream p) (io/output-stream out)))
-  p)
+(defn > [^ProcessBuilder p out]
+  (.redirectOutput p (io/file out)))
 
-(defn >> [^Process p out]
-  (future (copy (.getInputStream p) (io/output-stream out :append true)))
-  p)
+(defn >> [^ProcessBuilder p out]
+  (.redirectOutput p (java.lang.ProcessBuilder$Redirect/appendTo (io/file out))))
 
 (defmacro do [& body]
   (with-meta
