@@ -34,16 +34,19 @@
                    (str/starts-with? (name op) ".")
                    (str/ends-with? (name op) ".")))
         (compile* cenv form)
-        (let [args' (for [x args]
-                      (if (seq? x)
-                        (compile (as-expr cenv) x)
-                        x))]
+        (let [op' (name op)
+              args' (for [x args]
+                      (if (symbol? x)
+                        (if (utils/lookup locals x)
+                          x
+                          (str x))
+                        (compile (as-expr cenv) x)))]
           (if-let [coerce-fn (get {:expr `emsh.core/->str*
                                    :statement `emsh.core/->out
                                    :conditional `emsh.core/succeeded?}
                                   (:context cenv))]
-            `(~coerce-fn (emsh.core/sh ~op ~@args'))
-            `(emsh.core/sh ~op ~@args'))))
+            `(~coerce-fn (emsh.core/sh ~op' ~@args'))
+            `(emsh.core/sh ~op' ~@args'))))
       (meta form))))
 
 (defn- compile-coll [cenv form]

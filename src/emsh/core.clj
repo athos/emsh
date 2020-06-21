@@ -41,18 +41,10 @@
 (defn succeeded? [p]
   (= (wait-for p) 0))
 
-(defn sh* [command & args]
+(defn sh [command & args]
   (->> (cons command args)
        (map ->str)
        (ProcessBuilder.)))
-
-(defmacro sh [command & args]
-  `(sh* ~(str command)
-        ~@(map (fn [x]
-                 (if (and (symbol? x) (not (utils/lookup &env x)))
-                   (str x)
-                   x))
-               args)))
 
 (defn copy [in ^OutputStream out]
   (io/copy in out)
