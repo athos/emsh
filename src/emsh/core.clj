@@ -44,16 +44,13 @@
        ^java.util.List (map ->str)
        (ProcessBuilder.)))
 
-(defn copy [in ^OutputStream out]
-  (io/copy in out)
-  (.close out))
-
 (defn | [& ps]
   (let [ps' (mapv ensure-started ps)]
     (doseq [[p q] (partition 2 1 ps')]
       (future
-        (copy (.getInputStream ^Process p)
-              (.getOutputStream ^Process q))))
+        (let [out (.getOutputStream ^Process q)]
+          (io/copy (.getInputStream ^Process p) out)
+          (.close out))))
     (last ps')))
 
 (defn < [^ProcessBuilder p in]
