@@ -154,3 +154,20 @@
                        (mapcat (fn [[name f]] [name (compile cenv' f)]))
                        fnspecs)]
     `(letfn* ~fnspecs' ~@(compile-body cenv' body))))
+
+(defmethod compile* 'try [cenv [_ & body]]
+  (let [[body' clauses] (split-with
+                         (fn [x]
+                           (or (not (seq? x))
+                               (not ('#{catch finally} (first x)))))
+                         body)]
+    `(try
+       ~@(compile-body cenv body')
+       ~@(map (partial compile cenv) clauses))))
+
+(defmethod compile* 'catch [cenv [_ etype ename & body]]
+  `(catch ~etype ~ename
+     ~@(compile-body (assoc-in cenv [:locals ename] ename) body)))
+
+(defmethod compile* 'finally [cenv [_ & body]]
+  `(finally ~@(compile-body (as-statement cenv) body)))
