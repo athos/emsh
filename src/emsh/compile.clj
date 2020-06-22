@@ -101,6 +101,12 @@
     ;; TODO: should treat recursive calls correctly
     `(def ~name ~(compile (as-expr cenv) init))))
 
+(defmethod compile* 'var [cenv form]
+  form)
+
+(defmethod compile* 'set! [cenv [_ target expr]]
+  `(set! ~target (compile (as-expr cenv) expr)))
+
 (defmethod compile* 'if [cenv [_ test then else :as form]]
   `(if ~(compile (assoc cenv :context :conditional) test)
      ~(compile cenv then)
