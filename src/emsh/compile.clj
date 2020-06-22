@@ -98,8 +98,9 @@
 (defmethod compile* 'def [cenv [_ name init :as form]]
   (if (= (count form) 2)
     form
-    ;; TODO: should treat recursive calls correctly
-    `(def ~name ~(compile (as-expr cenv) init))))
+    (let [cenv' (-> (as-expr cenv)
+                    (assoc-in [:locals name] name))]
+      `(def ~name ~(compile cenv' init)))))
 
 (defmethod compile* 'var [cenv form]
   form)
