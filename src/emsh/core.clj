@@ -18,12 +18,13 @@
         env (.environment pb)]
     (doseq [[k v] *env*]
       (.put env k (str v)))
-    (cond-> (->ProcessProxy (.start pb))
-      (not= out ProcessBuilder$Redirect/PIPE)
-      (assoc :out out)
-
-      (not= err ProcessBuilder$Redirect/PIPE)
-      (assoc :err err))))
+    (let [p (.start pb)]
+      (when-not (= err ProcessBuilder$Redirect/PIPE)
+        (future
+          (io/copy (.getErrorStream p) *err*)))
+      (cond-> (->ProcessProxy p)
+        (not= out ProcessBuilder$Redirect/PIPE)
+        (assoc :out out)))))
 
 (defmacro with-env [env & body]
   `(binding [*env* (merge *env*
@@ -40,16 +41,9 @@
   (when (nil? (:out p))
     (.getInputStream (process-impl p))))
 
-(defn- forward-error-stream [p]
-  (when (nil? (:err p))
-    (future
-      (io/copy (.getErrorStream (process-impl p)) *err*))))
-
 (defn- with-input-stream [p f]
-  (let [p' (ensure-started p)]
-    (forward-error-stream p')
-    (when-let [in (input-stream p')]
-      (f in))))
+  (when-let [in (input-stream (ensure-started p))]
+    (f in)))
 
 (defn ^:process-in ->raw-str [x]
   (with-input-stream x slurp))
