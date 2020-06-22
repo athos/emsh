@@ -66,7 +66,7 @@
   (cond (seq? form) (compile-seq cenv form)
         (map? form) (let [cenv' (as-expr cenv)]
                       (into (empty form)
-                            (map (fn [k v]
+                            (map (fn [[k v]]
                                    [(compile cenv' k)
                                     (compile cenv' v)]))
                             form))
