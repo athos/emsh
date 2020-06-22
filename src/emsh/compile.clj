@@ -18,7 +18,7 @@
 (defmulti ^:private compile* (fn [cenv form] (first form)))
 
 (defn- wrap-with-coerce-fn [cenv form]
-  (if-let [coerce-fn (get {:expr `emsh.core/->str*
+  (if-let [coerce-fn (get {:expr `emsh.core/->str
                            :statement `emsh.core/wait-for
                            :conditional `emsh.core/succeeded?}
                           (:context cenv))]

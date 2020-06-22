@@ -51,10 +51,10 @@
     (when-let [in (input-stream p')]
       (f in))))
 
-(defn ^:process-in ->str [x]
+(defn ^:process-in ->raw-str [x]
   (with-input-stream x slurp))
 
-(defn ^:process-in ->str* [p]
+(defn ^:process-in ->str [p]
   (with-input-stream p
     (fn [in]
       (let [sb (StringBuilder.)]
