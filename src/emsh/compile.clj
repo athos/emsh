@@ -30,8 +30,7 @@
 (defn- compile-seq [cenv [op & args :as form]]
   (if-let [v (and (symbol? op) (lookup cenv op))]
     (or (when (var? v)
-          (cond (and (:macro (meta v))
-                     (not= (ns-name (:ns (meta v))) 'emsh.core))
+          (cond (:macro (meta v))
                 (compile cenv (apply v form (:locals cenv) args))
 
                 (or (:process-in (meta v))
