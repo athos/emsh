@@ -10,15 +10,26 @@
 (defn- ^Process process-impl [process-proxy]
   (:process process-proxy))
 
+(def ^:dynamic *env* {})
+
 (defn- start-process [^ProcessBuilder pb]
   (let [out (.redirectOutput pb)
-        err (.redirectError pb)]
+        err (.redirectError pb)
+        env (.environment pb)]
+    (doseq [[k v] *env*]
+      (.put env k (str v)))
     (cond-> (->ProcessProxy (.start pb))
       (not= out ProcessBuilder$Redirect/PIPE)
       (assoc :out out)
 
       (not= err ProcessBuilder$Redirect/PIPE)
       (assoc :err err))))
+
+(defmacro with-env [env & body]
+  `(binding [*env* (merge *env*
+                          ~(into {} (map (fn [[k v]] [(name k) v]))
+                                 (partition 2 env)))]
+     ~@body))
 
 (defn- ensure-started [p]
   (if (instance? ProcessBuilder p)
