@@ -83,8 +83,8 @@
   (let [ps' (mapv ensure-started ps)]
     (doseq [[p q] (partition 2 1 ps')]
       (future
-        (let [out (.getOutputStream ^Process q)]
-          (io/copy (.getInputStream ^Process p) out)
+        (let [out (.getOutputStream (process-impl q))]
+          (io/copy (.getInputStream (process-impl p)) out)
           (.close out))))
     (last ps')))
 
