@@ -17,6 +17,14 @@
 
 (defmulti ^:private compile* (fn [cenv form] (first form)))
 
+(defn- wrap-with-coerce-fn [cenv form]
+  (if-let [coerce-fn (get {:expr `emsh.core/->str*
+                           :statement `emsh.core/wait-for
+                           :conditional `emsh.core/succeeded?}
+                          (:context cenv))]
+    `(~coerce-fn ~form)
+    form))
+
 (declare compile)
 
 (defn- compile-seq [cenv [op & args :as form]]
@@ -26,11 +34,15 @@
                      (not= (ns-name (:ns (meta v))) 'emsh.core))
                 (compile cenv (apply v form (:locals cenv) args))
 
-                (= (ns-name (:ns (meta v))) 'emsh.core)
-                (let [cenv' (assoc cenv :context :shell)]
-                  (with-meta
-                    `(~(symbol v) ~@(map (partial compile cenv') args))
-                    (meta form)))))
+                (or (:process-in (meta v))
+                    (:process-out (meta v)))
+                (let [ctx (if (:process-in (meta v)) :emsh :expr)
+                      cenv' (assoc cenv :context ctx)]
+                  (cond->> (with-meta
+                             `(~(symbol v) ~@(map (partial compile cenv') args))
+                             (meta form))
+                    (:process-out (meta v))
+                    (wrap-with-coerce-fn cenv)))))
         (with-meta
           `(~op ~@(map (partial compile (as-expr cenv)) args))
           (meta form)))
@@ -47,12 +59,7 @@
                           x
                           (str x))
                         (compile (as-expr cenv) x)))]
-          (if-let [coerce-fn (get {:expr `emsh.core/->str*
-                                   :statement `emsh.core/wait-for
-                                   :conditional `emsh.core/succeeded?}
-                                  (:context cenv))]
-            `(~coerce-fn (emsh.core/sh ~op' ~@args'))
-            `(emsh.core/sh ~op' ~@args'))))
+          (wrap-with-coerce-fn cenv `(emsh.core/sh ~op' ~@args'))))
       (meta form))))
 
 (defn- compile-coll [cenv form]

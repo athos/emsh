@@ -40,10 +40,10 @@
     (when-let [in (input-stream p')]
       (f in))))
 
-(defn ->str [x]
+(defn ^:process-in ->str [x]
   (with-input-stream x slurp))
 
-(defn ->str* [p]
+(defn ^:process-in ->str* [p]
   (with-input-stream p
     (fn [in]
       (let [sb (StringBuilder.)]
@@ -54,32 +54,32 @@
               (recur))))
         (.toString sb)))))
 
-(defn ->lines [p]
+(defn ^:process-in ->lines [p]
   (with-input-stream p #(line-seq (io/reader %))))
 
-(defn ->out
+(defn ^:process-in ->out
   ([p] (->out p *out*))
   ([p out]
    (with-input-stream p #(io/copy % out))))
 
-(defn exit-value [p]
+(defn ^:process-in exit-value [p]
   (let [p' (ensure-started p)]
     (->out p')
     (.waitFor (process-impl p'))))
 
-(defn wait-for [p]
+(defn ^:process-in wait-for [p]
   (exit-value p)
   nil)
 
-(defn succeeded? [p]
+(defn ^:process-in succeeded? [p]
   (= (exit-value p) 0))
 
-(defn sh [command & args]
+(defn ^:process-out sh [command & args]
   (->> (cons command args)
        ^java.util.List (map str)
        (ProcessBuilder.)))
 
-(defn | [& ps]
+(defn ^:process-in ^:process-out | [& ps]
   (let [ps' (mapv ensure-started ps)]
     (doseq [[p q] (partition 2 1 ps')]
       (future
@@ -88,13 +88,13 @@
           (.close out))))
     (last ps')))
 
-(defn < [^ProcessBuilder p in]
+(defn ^:process-in ^:process-out < [^ProcessBuilder p in]
   (.redirectInput p (io/file in)))
 
-(defn > [^ProcessBuilder p out]
+(defn ^:process-in ^:process-out > [^ProcessBuilder p out]
   (.redirectOutput p (io/file out)))
 
-(defn >> [^ProcessBuilder p out]
+(defn ^:process-in ^:process-out >> [^ProcessBuilder p out]
   (.redirectOutput p (java.lang.ProcessBuilder$Redirect/appendTo (io/file out))))
 
 (defmacro do [& body]
