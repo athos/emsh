@@ -136,13 +136,20 @@
 
 (defmethod compile* 'fn* [cenv [_ & sigs]]
   (let [[fname sigs] (if (symbol? (first sigs))
-                       [(first sigs) (rest sigs)]
-                       [nil sigs])
+                       [(first sigs)
+                        (cond-> (rest sigs)
+                          (vector? (second sigs))
+                          list)]
+                       [nil
+                        (cond-> sigs
+                          (vector? (first sigs))
+                          list)])
         cenv (as-statement cenv)]
     `(fn* ~@(when fname [fname])
           ~@(for [[params & fbody :as sig] sigs
-                  :let [cenv' (update cenv :locals merge
-                                      (zipmap params params))]]
+                  :let [names (cons fname params)
+                        cenv' (update cenv :locals merge
+                                      (zipmap names names))]]
               (with-meta
                 `(~params ~@(compile-body cenv' fbody))
                 (meta sig))))))
