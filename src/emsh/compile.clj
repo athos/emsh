@@ -27,11 +27,16 @@
 
 (declare compile)
 
+(defmacro expand-and-compile [ctx m form]
+  (let [cenv {:locals &env :context ctx}
+        v (resolve m)]
+    (compile cenv (apply v form &env (rest form)))))
+
 (defn- compile-seq [cenv [op & args :as form]]
   (if-let [v (and (symbol? op) (lookup cenv op))]
     (or (when (var? v)
           (cond (:macro (meta v))
-                (compile cenv (apply v form (:locals cenv) args))
+                `(expand-and-compile ~(:context cenv) ~(symbol v) ~form)
 
                 (or (:process-in (meta v))
                     (:process-out (meta v)))
