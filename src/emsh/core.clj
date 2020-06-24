@@ -79,6 +79,11 @@
 (defn ^:process-in succeeded? [p]
   (= (exit-value p) 0))
 
+(defn ^:process-in ->proc [p]
+  (let [p' (ensure-started p)]
+    (wait-for p')
+    p'))
+
 (defn ^:process-out sh [command & args]
   (->> (cons command (flatten args))
        ^java.util.List (map str)
@@ -101,6 +106,24 @@
 
 (defn ^:process-in ^:process-out >> [^ProcessBuilder p out]
   (.redirectOutput p (java.lang.ProcessBuilder$Redirect/appendTo (io/file out))))
+
+(defn ^:process-out proc [p] p)
+
+(defmacro && [p & ps]
+  (if (seq ps)
+    `(let [p# (->proc ~p)]
+       (if (succeeded? p#)
+         (&& ~@ps)
+         (proc p#)))
+    p))
+
+(defmacro || [p && ps]
+  (if (seq ps)
+    `(let [p# (->proc ~p)]
+       (if (succeeded? p#)
+         (proc p#)
+         (|| ~@ps)))
+    p))
 
 (defmacro do [& body]
   (with-meta
