@@ -80,7 +80,7 @@
   (= (exit-value p) 0))
 
 (defn ^:process-out sh [command & args]
-  (->> (cons command args)
+  (->> (cons command (flatten args))
        ^java.util.List (map str)
        (ProcessBuilder.)))
 
