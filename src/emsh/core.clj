@@ -12,12 +12,17 @@
 
 (def ^:dynamic *env* {})
 
+(def ^:dynamic *in-pipe?* false)
+
 (defn- start-process [^ProcessBuilder pb]
-  (let [out (.redirectOutput pb)
+  (let [in (.redirectInput pb)
+        out (.redirectOutput pb)
         err (.redirectError pb)
         env (.environment pb)]
     (doseq [[k v] *env*]
       (.put env k (str v)))
+    (when (and (not *in-pipe?*) (= in ProcessBuilder$Redirect/PIPE))
+      (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
     (let [p (.start pb)]
       (when-not (= err ProcessBuilder$Redirect/PIPE)
         (future
@@ -90,7 +95,11 @@
        (ProcessBuilder.)))
 
 (defn ^:process-in ^:process-out | [& ps]
-  (let [ps' (mapv ensure-started ps)]
+  (let [ps' (into [(ensure-started (first ps))]
+                  (map (fn [p]
+                         (binding [*in-pipe?* true]
+                           (ensure-started p))))
+                  (rest ps))]
     (doseq [[p q] (partition 2 1 ps')]
       (future
         (let [out (.getOutputStream (process-impl q))]
