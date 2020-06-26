@@ -24,7 +24,7 @@
     (when (and (not *in-pipe?*) (= in ProcessBuilder$Redirect/PIPE))
       (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
     (let [p (.start pb)]
-      (when-not (= err ProcessBuilder$Redirect/PIPE)
+      (when (= err ProcessBuilder$Redirect/PIPE)
         (future
           (io/copy (.getErrorStream p) *err*)))
       (cond-> (->ProcessProxy p)
