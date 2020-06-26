@@ -110,11 +110,21 @@
 (defn ^:process-in ^:process-out < [^ProcessBuilder p in]
   (.redirectInput p (io/file in)))
 
-(defn ^:process-in ^:process-out > [^ProcessBuilder p out]
-  (.redirectOutput p (io/file out)))
+(defn ^:process-in ^:process-out >
+  ([p dst] (> p :stdout dst))
+  ([^ProcessBuilder p src dst]
+   (let [redirect (ProcessBuilder$Redirect/to (io/file dst))]
+     (condp contains? src
+       #{1 :stdout} (.redirectOutput p redirect)
+       #{2 :stderr} (.redirectError p redirect)))))
 
-(defn ^:process-in ^:process-out >> [^ProcessBuilder p out]
-  (.redirectOutput p (java.lang.ProcessBuilder$Redirect/appendTo (io/file out))))
+(defn ^:process-in ^:process-out >>
+  ([p dst] (>> p :stdout dst))
+  ([^ProcessBuilder p src dst]
+   (let [redirect (ProcessBuilder$Redirect/appendTo (io/file dst))]
+     (condp contains? src
+       #{1 :stdout} (.redirectOutput p redirect)
+       #{2 :stderr} (.redirectError p redirect)))))
 
 (defn ^:process-out proc [p] p)
 
