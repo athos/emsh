@@ -59,19 +59,23 @@
           `(~op ~@(map (partial compile (as-expr cenv)) args))
           (meta form)))
     (with-meta
-      (if (and (symbol? op)
-               (or (special-symbol? op)
-                   (str/starts-with? (name op) ".")
-                   (str/ends-with? (name op) ".")))
-        (compile* cenv form)
-        (let [op' (name op)
-              args' (for [x args]
-                      (if (symbol? x)
-                        (if (lookup cenv x)
-                          x
-                          (str x))
-                        (compile (as-expr cenv) x)))]
-          (wrap-with-coerce-fn cenv `(emsh.core/sh ~op' ~@args'))))
+      (cond (and (symbol? op)
+                 (or (special-symbol? op)
+                     (str/starts-with? (name op) ".")
+                     (str/ends-with? (name op) ".")))
+            (compile* cenv form)
+
+            (or (symbol? op) (string? op))
+            (let [op' (name op)
+                  args' (for [x args]
+                          (if (symbol? x)
+                            (if (lookup cenv x)
+                              x
+                              (str x))
+                            (compile (as-expr cenv) x)))]
+              (wrap-with-coerce-fn cenv `(emsh.core/sh ~op' ~@args')))
+
+            :else `(~op ~@(map (partial compile (as-expr cenv)) args)))
       (meta form))))
 
 (defn- compile-coll [cenv form]
