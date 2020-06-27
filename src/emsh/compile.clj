@@ -29,8 +29,15 @@
 
 (defmacro expand-and-compile [ctx m form]
   (let [cenv {:locals &env :context ctx}
+        do-macro (resolve 'emsh.core/do)
         expand (fn [v form]
-                 (let [form' (apply v form &env (rest form))]
+                 (let [form' (apply v (cond-> form
+                                        ;; if macro to be expanded is emsh.core/do,
+                                        ;; inject context info to its metadata
+                                        ;; for more composability
+                                        (= v do-macro)
+                                        (vary-meta assoc :context ctx))
+                                    &env (rest form))]
                    (if-let [v' (and (seq? form')
                                     (symbol? (first form'))
                                     (lookup cenv (first form')))]

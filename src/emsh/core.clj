@@ -145,6 +145,7 @@
     p))
 
 (defmacro do [& body]
-  (with-meta
-    (comp/compile {:locals &env :context :statement} `(do ~@body))
-    (meta &form)))
+  (let [ctx (:context (meta &form) :statement)]
+    (with-meta
+      (comp/compile {:locals &env :context ctx} `(do ~@body))
+      (dissoc (meta &form) :context))))
