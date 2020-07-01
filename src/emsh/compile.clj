@@ -202,3 +202,21 @@
 
 (defmethod compile* 'finally [cenv [_ & body]]
   `(finally ~@(compile-body (as-statement cenv) body)))
+
+(defmethod compile* 'new [cenv [_ c & args]]
+  `(new ~c ~@(map (partial compile (as-expr cenv)) args)))
+
+(defmethod compile* '. [cenv [_ target field-or-method & more]]
+  (let [target' (if (and (symbol target)
+                         (class? (lookup cenv target)))
+                  target
+                  (compile (as-expr cenv) target))]
+    `(. ~target'
+        ~(if (seq? field-or-method)
+           (with-meta
+             `(~(first field-or-method)
+               ~@(map (partial compile (as-expr cenv))
+                      (rest field-or-method)))
+             (meta field-or-method))
+           field-or-method)
+        ~@(map (partial compile (as-expr cenv)) more))))
