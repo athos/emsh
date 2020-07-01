@@ -157,7 +157,7 @@
     `(loop* ~bindings'
        ~@(compile-body (inherit-context cenv' cenv) body))))
 
-(defmethod compile* 'fn* [cenv [_ & sigs]]
+(defmethod compile* 'fn* [cenv [op & sigs]]
   (let [[fname sigs] (if (symbol? (first sigs))
                        [(first sigs)
                         (cond-> (rest sigs)
@@ -168,7 +168,7 @@
                           (vector? (first sigs))
                           list)])
         cenv (as-statement cenv)]
-    `(fn* ~@(when fname [fname])
+    `(~op ~@(when fname [fname])
           ~@(for [[params & fbody :as sig] sigs
                   :let [names (cons fname params)
                         cenv' (update cenv :locals merge
