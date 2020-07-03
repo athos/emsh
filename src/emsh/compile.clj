@@ -137,6 +137,17 @@
      ~@(when (= (count form) 4)
          [(compile cenv else)])))
 
+(defmethod compile* 'case*
+  [cenv [_ expr shift mask default cases switch-type case-type skip-check :as form]]
+  `(case* ~expr ~shift ~mask ~(compile cenv default)
+          ~(reduce-kv (fn [m k v]
+                        (assoc m k (update v 1 (partial compile cenv))))
+                      (empty cases)
+                      cases)
+          ~switch-type ~case-type
+          ~@(when (>= (count form) 9)
+              [skip-check])))
+
 (defn- compile-bindings [cenv bindings]
   (loop [cenv (as-expr cenv)
          [[name init :as binding] & more] (partition 2 bindings)
