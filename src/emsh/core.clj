@@ -1,6 +1,7 @@
 (ns emsh.core
-  (:refer-clojure :exclude [< >])
-  (:require [clojure.java.io :as io]
+  (:refer-clojure :exclude [< > macroexpand])
+  (:require [clojure.core :as cc]
+            [clojure.java.io :as io]
             [emsh.compile :as comp])
   (:import [java.io OutputStream BufferedReader]
            [java.lang ProcessBuilder$Redirect]))
@@ -149,3 +150,7 @@
     (with-meta
       (comp/compile {:locals &env :context ctx} `(do ~@body))
       (dissoc (meta &form) :context))))
+
+(defn macroexpand [form]
+  (binding [comp/*debug* true]
+    (cc/macroexpand form)))

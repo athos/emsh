@@ -2,6 +2,8 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.string :as str]))
 
+(def ^:dynamic *debug* false)
+
 (defn lookup [{:keys [locals]} sym]
   (or (get locals sym)
       (resolve '{do do} sym)
@@ -27,17 +29,17 @@
 
 (declare compile)
 
-(defmacro expand-and-compile [ctx m form]
-  (let [cenv {:locals &env :context ctx}
-        do-macro (resolve 'emsh.core/do)
+(defn- do-expand [cenv v form]
+  (let [do-macro (resolve 'emsh.core/do)
         expand (fn [v form]
                  (let [form' (apply v (cond-> form
                                         ;; if macro to be expanded is emsh.core/do,
                                         ;; inject context info to its metadata
                                         ;; for more composability
                                         (= v do-macro)
-                                        (vary-meta assoc :context ctx))
-                                    &env (rest form))]
+                                        (vary-meta assoc :context (:context cenv)))
+                                    (:locals cenv)
+                                    (rest form))]
                    (if-let [v' (and (seq? form')
                                     (symbol? (first form'))
                                     (lookup cenv (first form')))]
@@ -45,13 +47,18 @@
                        (recur v' form')
                        form')
                      form')))]
-    (compile cenv (expand (resolve m) form))))
+    (compile cenv (expand v form))))
+
+(defmacro expand-and-compile [ctx m form]
+  (do-expand {:locals &env :context ctx} (resolve m) form))
 
 (defn- compile-seq [cenv [op & args :as form]]
   (if-let [v (and (symbol? op) (lookup cenv op))]
     (or (when (var? v)
           (cond (:macro (meta v))
-                `(expand-and-compile ~(:context cenv) ~(symbol v) ~form)
+                (if *debug*
+                  (do-expand cenv v form)
+                  `(expand-and-compile ~(:context cenv) ~(symbol v) ~form))
 
                 (or (:process-in (meta v))
                     (:process-out (meta v)))
