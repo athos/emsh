@@ -6,6 +6,8 @@
   (:import [java.io OutputStream BufferedReader]
            [java.lang ProcessBuilder$Redirect]))
 
+(defrecord Command [command args])
+
 (defrecord ProcessProxy [process])
 
 (defn- ^Process process-impl [process-proxy]
@@ -15,22 +17,22 @@
 
 (def ^:dynamic *in-pipe?* false)
 
-(defn- start-process [^ProcessBuilder pb]
-  (let [in (.redirectInput pb)
-        out (.redirectOutput pb)
-        err (.redirectError pb)
+(defn- start-process [{:keys [in out err] :as cmd}]
+  (let [pb (ProcessBuilder. ^java.util.List (cons (:command cmd) (:args cmd)))
         env (.environment pb)]
     (doseq [[k v] *env*]
       (.put env k (str v)))
-    (when (and (not *in-pipe?*) (= in ProcessBuilder$Redirect/PIPE))
+    (when (and (not *in-pipe?*) (nil? in))
       (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
+    (when out
+      (.redirectOutput pb ^ProcessBuilder$Redirect out))
+    (when err
+      (.redirectError pb ^ProcessBuilder$Redirect err))
     (let [p (.start pb)]
-      (when (= err ProcessBuilder$Redirect/PIPE)
-        (future
-          (io/copy (.getErrorStream p) *err*)))
+      (when (nil? err)
+        (future (io/copy (.getErrorStream p) *err*)))
       (cond-> (->ProcessProxy p)
-        (not= out ProcessBuilder$Redirect/PIPE)
-        (assoc :out out)))))
+        out (assoc :out out)))))
 
 (defmacro with-env [env & body]
   `(binding [*env* (merge *env*
@@ -39,7 +41,7 @@
      ~@body))
 
 (defn- ensure-started [p]
-  (if (instance? ProcessBuilder p)
+  (if (instance? Command p)
     (start-process p)
     p))
 
@@ -91,9 +93,9 @@
     p'))
 
 (defn ^:process-out sh [command & args]
-  (->> (cons command (flatten args))
-       ^java.util.List (map str)
-       (ProcessBuilder.)))
+  (->> (flatten args)
+       (map str)
+       (->Command command)))
 
 (defn ^:process-in ^:process-out | [& ps]
   (let [ps' (into [(ensure-started (first ps))]
@@ -108,24 +110,24 @@
           (.close out))))
     (last ps')))
 
-(defn ^:process-in ^:process-out < [^ProcessBuilder p in]
-  (.redirectInput p (io/file in)))
+(defn ^:process-in ^:process-out < [cmd in]
+  (assoc cmd :in in))
 
 (defn ^:process-in ^:process-out >
-  ([p dst] (> p :stdout dst))
-  ([^ProcessBuilder p src dst]
+  ([cmd dst] (> cmd :stdout dst))
+  ([cmd src dst]
    (let [redirect (ProcessBuilder$Redirect/to (io/file dst))]
      (condp contains? src
-       #{1 :stdout} (.redirectOutput p redirect)
-       #{2 :stderr} (.redirectError p redirect)))))
+       #{1 :stdout} (assoc cmd :out redirect)
+       #{2 :stderr} (assoc cmd :err redirect)))))
 
 (defn ^:process-in ^:process-out >>
-  ([p dst] (>> p :stdout dst))
-  ([^ProcessBuilder p src dst]
+  ([cmd dst] (>> cmd :stdout dst))
+  ([cmd src dst]
    (let [redirect (ProcessBuilder$Redirect/appendTo (io/file dst))]
      (condp contains? src
-       #{1 :stdout} (.redirectOutput p redirect)
-       #{2 :stderr} (.redirectError p redirect)))))
+       #{1 :stdout} (assoc cmd :out redirect)
+       #{2 :stderr} (assoc cmd :err redirect)))))
 
 (defn ^:process-out proc [p] p)
 
