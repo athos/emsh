@@ -1,8 +1,10 @@
 (ns emsh.process-builder
   (:require [clojure.java.io :as io]
-            [emsh.command :as comm]
+            emsh.command
+            [emsh.process :as proc]
             [emsh.protocols :as proto])
   (:import [emsh.command Command Pipe]
+           [java.io Closeable]
            [java.lang ProcessBuilder$Redirect]
            [java.util List]))
 
@@ -20,10 +22,10 @@
         (.redirectOutput pb ^ProcessBuilder$Redirect stdout))
       (when stderr
         (.redirectError pb ^ProcessBuilder$Redirect stderr))
-      (let [p (.start pb)]
+      (let [p (proc/->ProcessProxy (.start pb))]
         (when (nil? stderr)
-          (future (io/copy (.getErrorStream p) *err*)))
-        (cond-> (comm/->ProcessProxy p)
+          (future (io/copy (proto/error-stream p) *err*)))
+        (cond-> p
           stdout (assoc :out stdout)))))
 
   Pipe
@@ -31,7 +33,7 @@
     (let [ps (mapv proto/start commands)]
       (doseq [[p q] (partition 2 1 ps)]
         (future
-          (let [out (.getOutputStream (comm/process-impl q))]
-            (io/copy (.getInputStream (comm/process-impl p)) out)
-            (.close out))))
+          (let [out (proto/output-stream q)]
+            (io/copy (proto/input-stream p) out)
+            (.close ^Closeable out))))
       (last ps))))

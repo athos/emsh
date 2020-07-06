@@ -21,12 +21,8 @@
     (proto/start p)
     p))
 
-(defn- input-stream [p]
-  (when (nil? (:out p))
-    (.getInputStream (comm/process-impl p))))
-
 (defn- with-input-stream [p f]
-  (when-let [in (input-stream (ensure-started p))]
+  (when-let [in (proto/input-stream (ensure-started p))]
     (f in)))
 
 (defn ^:process-in ->raw-str [x]
@@ -54,7 +50,7 @@
 (defn ^:process-in exit-value [p]
   (let [p' (ensure-started p)]
     (->out p')
-    (.waitFor (comm/process-impl p'))))
+    (proto/wait-for p')))
 
 (defn ^:process-in wait-for [p]
   (exit-value p)

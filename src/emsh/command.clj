@@ -2,11 +2,6 @@
   (:require [clojure.java.io :as io]
             [emsh.protocols :as proto]))
 
-(defrecord ProcessProxy [process])
-
-(defn ^Process process-impl [p]
-  (:process p))
-
 (defrecord Command [command args env]
   proto/ICommand
   (list-commands [this] [this])
