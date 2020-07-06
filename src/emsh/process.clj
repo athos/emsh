@@ -12,3 +12,14 @@
     (.getErrorStream process))
   (wait-for [this]
     (.waitFor process)))
+
+(defrecord Transform [fut in out]
+  proto/IProcess
+  (input-stream [this] in)
+  (output-stream [this] out)
+  (error-stream [this])
+  (wait-for [this]
+    (try
+      @fut
+      0
+      (catch Throwable _ 1))))

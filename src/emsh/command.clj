@@ -17,3 +17,13 @@
     (update-in this [:commands 0] < input))
   (> [this from to]
     (update-in this [:commands (dec (count commands))] > from to)))
+
+(defrecord Transform [xform]
+  proto/ICommand
+  (list-commands [this] [this])
+  (< [this input]
+    ;; FIXME
+    )
+  (> [this from to]
+    ;; FIXME
+    ))

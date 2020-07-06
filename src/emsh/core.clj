@@ -80,6 +80,9 @@
       (comm/->Pipe (vec <>)))
     command))
 
+(defn ^:process-out transform [xform]
+  (comm/->Transform xform))
+
 (defn ^:process-in ^:process-out < [cmd in]
   (proto/< cmd in))
 

@@ -3,8 +3,8 @@
             emsh.command
             [emsh.process :as proc]
             [emsh.protocols :as proto])
-  (:import [emsh.command Command Pipe]
-           [java.io Closeable]
+  (:import [emsh.command Command Pipe Transform]
+           [java.io Closeable PipedInputStream PipedOutputStream]
            [java.lang ProcessBuilder$Redirect]
            [java.util List]))
 
@@ -36,4 +36,22 @@
           (let [out (proto/output-stream q)]
             (io/copy (proto/input-stream p) out)
             (.close ^Closeable out))))
-      (last ps))))
+      (last ps)))
+
+  Transform
+  (start [{:keys [xform]}]
+    (let [in (PipedInputStream.)
+          out (PipedOutputStream.)
+          sep (System/lineSeparator)
+          fut (future
+                (with-open [r (io/reader in)
+                            w (io/writer out)]
+                  (->> (line-seq r)
+                       (transduce xform
+                                  (completing
+                                   (fn [acc ^String line]
+                                     (.write w line)
+                                     (.write w sep)
+                                     acc))
+                                  nil))))]
+      (proc/->Transform fut (PipedInputStream. out) (PipedOutputStream. in)))))
