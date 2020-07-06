@@ -2,37 +2,12 @@
   (:refer-clojure :exclude [< > macroexpand])
   (:require [clojure.core :as cc]
             [clojure.java.io :as io]
+            [emsh.command :as comm]
             [emsh.compile :as comp])
-  (:import [java.io OutputStream BufferedReader]
+  (:import [java.io BufferedReader]
            [java.lang ProcessBuilder$Redirect]))
 
-(defrecord Command [command args])
-
-(defrecord ProcessProxy [process])
-
-(defn- ^Process process-impl [process-proxy]
-  (:process process-proxy))
-
 (def ^:dynamic *env* {})
-
-(def ^:dynamic *in-pipe?* false)
-
-(defn- start-process [{:keys [in out err] :as cmd}]
-  (let [pb (ProcessBuilder. ^java.util.List (cons (:command cmd) (:args cmd)))
-        env (.environment pb)]
-    (doseq [[k v] *env*]
-      (.put env k (str v)))
-    (when (and (not *in-pipe?*) (nil? in))
-      (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
-    (when out
-      (.redirectOutput pb ^ProcessBuilder$Redirect out))
-    (when err
-      (.redirectError pb ^ProcessBuilder$Redirect err))
-    (let [p (.start pb)]
-      (when (nil? err)
-        (future (io/copy (.getErrorStream p) *err*)))
-      (cond-> (->ProcessProxy p)
-        out (assoc :out out)))))
 
 (defmacro with-env [env & body]
   `(binding [*env* (merge *env*
@@ -41,13 +16,13 @@
      ~@body))
 
 (defn- ensure-started [p]
-  (if (instance? Command p)
-    (start-process p)
+  (if (satisfies? comm/ICommand p)
+    (comm/start p)
     p))
 
 (defn- input-stream [p]
   (when (nil? (:out p))
-    (.getInputStream (process-impl p))))
+    (.getInputStream (comm/process-impl p))))
 
 (defn- with-input-stream [p f]
   (when-let [in (input-stream (ensure-started p))]
@@ -78,7 +53,7 @@
 (defn ^:process-in exit-value [p]
   (let [p' (ensure-started p)]
     (->out p')
-    (.waitFor (process-impl p'))))
+    (.waitFor (comm/process-impl p'))))
 
 (defn ^:process-in wait-for [p]
   (exit-value p)
@@ -93,41 +68,39 @@
     p'))
 
 (defn ^:process-out sh [command & args]
-  (->> (flatten args)
-       (map str)
-       (->Command command)))
+  (comm/->Command command
+                  (map str (flatten args))
+                  *env*))
 
-(defn ^:process-in ^:process-out | [& ps]
-  (let [ps' (into [(ensure-started (first ps))]
-                  (map (fn [p]
-                         (binding [*in-pipe?* true]
-                           (ensure-started p))))
-                  (rest ps))]
-    (doseq [[p q] (partition 2 1 ps')]
-      (future
-        (let [out (.getOutputStream (process-impl q))]
-          (io/copy (.getInputStream (process-impl p)) out)
-          (.close out))))
-    (last ps')))
+(defn ^:process-in ^:process-out | [command & commands]
+  (if (seq commands)
+    (as-> (cons command commands) <>
+      (into [] (mapcat comm/list-commands) <>)
+      (concat [(assoc (first <>) :stdout :pipe)]
+              (map #(assoc % :stdin :pipe :stdout :pipe)
+                   (next (butlast <>)))
+              [(assoc (last <>) :stdin :pipe)])
+      (comm/->Pipe (vec <>)))
+    command))
 
 (defn ^:process-in ^:process-out < [cmd in]
-  (assoc cmd :in in))
+  (comm/< cmd in))
 
 (defn ^:process-in ^:process-out >
-  ([cmd dst] (> cmd :stdout dst))
-  ([cmd src dst]
-   (let [redirect (ProcessBuilder$Redirect/to (io/file dst))]
-     (condp contains? src
-       #{1 :stdout} (assoc cmd :out redirect)
-       #{2 :stderr} (assoc cmd :err redirect)))))
+  ([cmd to] (> cmd :stdout to))
+  ([cmd from to]
+   (let [redirect (ProcessBuilder$Redirect/to (io/file to))]
+     (condp contains? from
+       #{1 :stdout} (comm/> cmd :stdout redirect)
+       #{2 :stderr} (comm/> cmd :stderr redirect)))))
 
 (defn ^:process-in ^:process-out >>
-  ([cmd dst] (>> cmd :stdout dst))
-  ([cmd src dst]
-   (let [redirect (ProcessBuilder$Redirect/appendTo (io/file dst))]
-     (condp contains? src
-       #{1 :stdout} (assoc cmd :out redirect)
-       #{2 :stderr} (assoc cmd :err redirect)))))
+  ([cmd to] (>> cmd :stdout to))
+  ([cmd from to]
+   (let [redirect (ProcessBuilder$Redirect/appendTo (io/file to))]
+     (condp contains? from
+       #{1 :stdout} (comm/> cmd :stdout redirect)
+       #{2 :stderr} (comm/> cmd :stderr redirect)))))
 
 (defn ^:process-out proc [p] p)
 
