@@ -3,7 +3,8 @@
   (:require [clojure.core :as cc]
             [clojure.java.io :as io]
             [emsh.command :as comm]
-            [emsh.compile :as comp])
+            [emsh.compile :as comp]
+            [emsh.protocols :as proto])
   (:import [java.io BufferedReader]
            [java.lang ProcessBuilder$Redirect]))
 
@@ -16,8 +17,8 @@
      ~@body))
 
 (defn- ensure-started [p]
-  (if (satisfies? comm/ICommand p)
-    (comm/start p)
+  (if (satisfies? proto/IProcessBuilder p)
+    (proto/start p)
     p))
 
 (defn- input-stream [p]
@@ -75,7 +76,7 @@
 (defn ^:process-in ^:process-out | [command & commands]
   (if (seq commands)
     (as-> (cons command commands) <>
-      (into [] (mapcat comm/list-commands) <>)
+      (into [] (mapcat proto/list-commands) <>)
       (concat [(assoc (first <>) :stdout :pipe)]
               (map #(assoc % :stdin :pipe :stdout :pipe)
                    (next (butlast <>)))
@@ -84,23 +85,23 @@
     command))
 
 (defn ^:process-in ^:process-out < [cmd in]
-  (comm/< cmd in))
+  (proto/< cmd in))
 
 (defn ^:process-in ^:process-out >
   ([cmd to] (> cmd :stdout to))
   ([cmd from to]
    (let [redirect (ProcessBuilder$Redirect/to (io/file to))]
      (condp contains? from
-       #{1 :stdout} (comm/> cmd :stdout redirect)
-       #{2 :stderr} (comm/> cmd :stderr redirect)))))
+       #{1 :stdout} (proto/> cmd :stdout redirect)
+       #{2 :stderr} (proto/> cmd :stderr redirect)))))
 
 (defn ^:process-in ^:process-out >>
   ([cmd to] (>> cmd :stdout to))
   ([cmd from to]
    (let [redirect (ProcessBuilder$Redirect/appendTo (io/file to))]
      (condp contains? from
-       #{1 :stdout} (comm/> cmd :stdout redirect)
-       #{2 :stderr} (comm/> cmd :stderr redirect)))))
+       #{1 :stdout} (proto/> cmd :stdout redirect)
+       #{2 :stderr} (proto/> cmd :stderr redirect)))))
 
 (defn ^:process-out proc [p] p)
 
