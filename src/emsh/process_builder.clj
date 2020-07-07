@@ -4,8 +4,8 @@
             [emsh.process :as proc]
             [emsh.protocols :as proto])
   (:import [emsh.command Command Pipe Transform]
-           [java.io Closeable PipedInputStream PipedOutputStream]
-           [java.lang ProcessBuilder$Redirect]
+           [java.io Closeable File PipedInputStream PipedOutputStream]
+           [java.lang ProcessBuilder$Redirect ProcessBuilder$Redirect$Type]
            [java.util List]))
 
 (extend-protocol proto/IProcessBuilder
@@ -39,9 +39,18 @@
       (last ps)))
 
   Transform
-  (start [{:keys [xform]}]
-    (let [in (PipedInputStream.)
-          out (PipedOutputStream.)
+  (start [{:keys [stdin stdout xform]}]
+    (let [in (if stdin
+               (io/reader stdin)
+               (PipedInputStream.))
+          out (if (instance? ProcessBuilder$Redirect stdout)
+                (let [^ProcessBuilder$Redirect stdout' stdout
+                      file (.file stdout')]
+                  (if (= (.type stdout')
+                         ProcessBuilder$Redirect$Type/APPEND)
+                    (io/writer file :append true)
+                    (io/writer file)))
+                (PipedOutputStream.))
           sep (System/lineSeparator)
           fut (future
                 (with-open [r (io/reader in)
@@ -54,4 +63,8 @@
                                      (.write w sep)
                                      acc))
                                   nil))))]
-      (proc/->Transform fut (PipedInputStream. out) (PipedOutputStream. in)))))
+      (proc/->Transform fut
+                        (when (instance? PipedOutputStream out)
+                          (PipedInputStream. out))
+                        (when (instance? PipedInputStream in)
+                          (PipedOutputStream. in))))))

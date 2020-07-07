@@ -22,8 +22,6 @@
   proto/ICommand
   (list-commands [this] [this])
   (< [this input]
-    ;; FIXME
-    )
+    (assoc this :stdin input))
   (> [this from to]
-    ;; FIXME
-    ))
+    (assoc this from to)))
