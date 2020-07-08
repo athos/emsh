@@ -14,9 +14,9 @@
   proto/ICommand
   (list-commands [this] commands)
   (< [this input]
-    (update-in this [:commands 0] < input))
+    (update-in this [:commands 0] proto/< input))
   (> [this from to]
-    (update-in this [:commands (dec (count commands))] > from to)))
+    (update-in this [:commands (dec (count commands))] proto/> from to)))
 
 (defrecord Transform [xform]
   proto/ICommand
