@@ -4,7 +4,8 @@
             [emsh.process :as proc]
             [emsh.protocols :as proto])
   (:import [emsh.command Command Pipe Transform]
-           [java.io Closeable File PipedInputStream PipedOutputStream]
+           [java.io Closeable File OutputStream PipedInputStream
+            PipedOutputStream StringReader]
            [java.lang ProcessBuilder$Redirect ProcessBuilder$Redirect$Type]
            [java.util List]))
 
@@ -16,13 +17,20 @@
           env (.environment pb)]
       (doseq [[k v] env]
         (.put env k (str v)))
-      (when (nil? stdin)
-        (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
+      (cond (instance? File stdin)
+            (.redirectInput pb ^File stdin)
+
+            (nil? stdin)
+            (.redirectInput pb ProcessBuilder$Redirect/INHERIT))
       (when (and stdout (not= stdout :pipe))
         (.redirectOutput pb ^ProcessBuilder$Redirect stdout))
       (when stderr
         (.redirectError pb ^ProcessBuilder$Redirect stderr))
       (let [p (proc/->ProcessProxy (.start pb))]
+        (when (string? stdin)
+          (doto ^OutputStream (proto/output-stream p)
+            (spit stdin)
+            (.close)))
         (when (nil? stderr)
           (future (io/copy (proto/error-stream p) *err*)))
         (cond-> p
@@ -40,9 +48,9 @@
 
   Transform
   (start [{:keys [stdin stdout xform]}]
-    (let [in (if stdin
-               (io/reader stdin)
-               (PipedInputStream.))
+    (let [in (cond (instance? File stdin) (io/reader stdin)
+                   (string? stdin) (StringReader. stdin)
+                   :else (PipedInputStream.))
           out (if (instance? ProcessBuilder$Redirect stdout)
                 (let [^ProcessBuilder$Redirect stdout' stdout
                       file (.file stdout')]

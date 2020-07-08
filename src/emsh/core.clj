@@ -84,6 +84,9 @@
   (comm/->Transform xform))
 
 (defn ^:process-in ^:process-out < [cmd in]
+  (proto/< cmd (io/file in)))
+
+(defn ^:process-in ^:process-out << [cmd in]
   (proto/< cmd in))
 
 (defn ^:process-in ^:process-out >
