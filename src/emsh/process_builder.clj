@@ -15,7 +15,7 @@
     (let [pb (ProcessBuilder.
               ^List (cons (:command this) (:args this)))
           env (.environment pb)]
-      (doseq [[k v] env]
+      (doseq [[k v] (:env this)]
         (.put env k (str v)))
       (cond (instance? File stdin)
             (.redirectInput pb ^File stdin)

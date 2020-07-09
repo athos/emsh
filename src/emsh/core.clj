@@ -4,6 +4,7 @@
             [clojure.java.io :as io]
             [emsh.command :as comm]
             [emsh.compile :as comp]
+            emsh.process-builder
             [emsh.protocols :as proto])
   (:import [java.io BufferedReader]
            [java.lang ProcessBuilder$Redirect]))
